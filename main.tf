@@ -244,6 +244,11 @@ resource "aws_iam_role_policy_attachment" "codebuild_s3" {
 
 # 1. GitHub -> ECR (Docker image)
 
+resource "aws_codestarconnections_connection" "default" {
+  name          = "default-connection"
+  provider_type = "GitHub"
+}
+
 resource "aws_codepipeline" "default" {
   # Elastic Beanstalk application name and environment name are specified
   count    = local.enabled ? 1 : 0
@@ -263,11 +268,12 @@ resource "aws_codepipeline" "default" {
       name             = "Source"
       category         = "Source"
       owner            = "ThirdParty"
-      provider         = "GitHub"
+      provider         = "CodeStarSourceConnection"
       version          = "1"
       output_artifacts = ["code"]
 
       configuration = {
+        ConnectionArn    = aws_codestarconnections_connection.default.arn
         OAuthToken           = var.github_oauth_token
         Owner                = var.repo_owner
         Repo                 = var.repo_name
@@ -366,8 +372,7 @@ resource "aws_codepipeline_webhook" "default" {
 }
 
 module "github_webhook" {
-  source  = "cloudposse/repository-webhooks/github"
-  version = "0.12.0"
+  source  = "git::https://github.com/sergeimikhan/terraform-github-repository-webhooks?ref=master"
 
   enabled              = local.webhook_enabled
   github_organization  = var.repo_owner
